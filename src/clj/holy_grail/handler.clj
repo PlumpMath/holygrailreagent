@@ -3,7 +3,7 @@
    [holy-grail.api :refer :all]
    [clojure.java.io :as io]
    [compojure.core :refer [defroutes GET]]
-   [compojure.route :as route ]
+   [compojure.route :as route]
    [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
    [ring.util.response :refer [response content-type resource-response]]))
 

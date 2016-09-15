@@ -8,8 +8,9 @@
                  [com.cemerick/piggieback "0.2.1"  :scope "test"]
                  [weasel                  "0.7.0"  :scope "test"]
 
+                 [devcards                "0.2.1-7"   :scope "test" :exclusions [cljsjs/react cljsjs/react-dom]]
+
                  [org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.7.228"]
 
                  [environ "1.0.3"]
                  [boot-environ "1.0.3"]
@@ -21,16 +22,23 @@
                  [ring/ring-jetty-adapter "1.4.0"]
                  [ring/ring-defaults "0.1.5"]
                  [compojure "1.4.0"]
+                 [pandeiro/boot-http            "0.7.3"     :scope "test"]
+                 [crisptrutski/boot-cljs-test   "0.2.1"     :scope "test"]
                  ; client
-                 [org.omcljs/om "0.9.0"]])
+                 [reagent                       "0.6.0-rc"]
+                 [org.omcljs/om "0.9.0"]
+                 [org.clojure/clojurescript     "1.9.216"]])
 
 (require
  '[adzerk.boot-cljs      :refer [cljs]]
  '[adzerk.boot-cljs-repl :refer [cljs-repl start-repl]]
  '[adzerk.boot-reload    :refer [reload]]
  '[holy-grail.systems :refer [dev-system prod-system]]
+ '[pandeiro.boot-http            :refer [serve]]
+ '[crisptrutski.boot-cljs-test   :refer [test-cljs]]
  '[environ.boot :refer [environ]]
  '[system.boot :refer [system run]])
+
 
 (deftask dev
   "Run a restartable system in the Repl"
@@ -40,8 +48,13 @@
    (watch :verbose true)
    (system :sys #'dev-system :auto true :files ["handler.clj"])
    (reload)
-   (cljs :source-map true)
-   (repl :server true)))
+ 
+   (cljs :source-map true
+         :optimizations :none)
+   (sift :include #{#"\.cljs\.edn$"} :invert true)
+   (repl :server true)
+   (speak)))
+
 
 (deftask dev-cljs-repl
   "Run a restartable system in the Repl"

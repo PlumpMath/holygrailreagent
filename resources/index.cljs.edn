@@ -1,0 +1,4 @@
+{:require [holy-grail.core]
+ :init-fns [holy-grail.core/render]
+
+ :compiler-options {:asset-path "js/main.out"}}
