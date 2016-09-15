@@ -51,7 +51,7 @@
  
    (cljs :source-map true
          :optimizations :none)
-   (sift :include #{#"\.cljs\.edn$"} :invert true)
+;   (sift :include #{#"\.cljs\.edn$"} :invert true)
    (repl :server true)
    (speak)))
 
