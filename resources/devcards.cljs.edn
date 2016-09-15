@@ -1,0 +1,3 @@
+{:require [holy-grail.components.page-test]
+ :init-fns [holy-grail.components.page-test/devcards]}
+
