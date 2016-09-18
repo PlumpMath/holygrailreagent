@@ -26,7 +26,7 @@
     (jdbc/execute! db ["CREATE TEMP TABLE test (coltest varchar(20));"])
     (jdbc/insert! db :test {:coltest msg})
     (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"]))))))
-
+  
 
 ;;; Add this: --->
 ;;;

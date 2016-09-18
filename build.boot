@@ -22,8 +22,13 @@
                  ;;; The story of URLs with re-frame and secretary is not yet complete.
                  [secretary                   "1.2.3"]
                  [korma "0.4.3"]
+                 [sqlingvo "0.8.17"]
                  [com.taoensso/sente "1.10.0"]
                  [mbuczko/boot-ragtime "0.2.0"]
+                 [mbuczko/boot-flyway "0.1.0-SNAPSHOT"]
+                 [migratus "0.8.28"]
+                 [com.fzakaria/slf4j-timbre "0.3.2"]
+                 
                  [org.clojure/tools.nrepl     "0.2.12"]                 
                  [org.clojure/clojure         "1.8.0"]
                  [org.clojure/clojurescript   "1.9.225"]
@@ -69,19 +74,12 @@
  '[environ.boot :refer [environ]]
  '[environ.core :refer [env]]
  '[mbuczko.boot-ragtime :refer [ragtime]]
+ '[mbuczko.boot-flyway :refer [flyway]]
  '[clojure.java.io :as io]
  '[system.boot :refer [system run]])
 
 (ns-unmap 'boot.user 'test)
 
-(task-options!
- ragtime {:database
-          (str (env :database-url)
-               (env :database-name)
-               "?user=" (env :database-user)
-               "&password=" (env :database-password))
-
-          :driver-class (env :driver-class)})
           
 
 (def config
@@ -90,6 +88,18 @@
       (-> f slurp read-string)
       {})))
 
+;(alter-var-root #'env #(merge config %))
+
+
+(task-options!
+ ragtime {:database "postgresql://localhost:5432/learning_db?user=timothyroy&password=flesym13"})
+   ;; (ragtime :database
+   ;;          (str (env :database-url)
+   ;;               (env :database-name)
+   ;;               "?user=" (env :database-user)
+   ;;               "&password=" (env :database-password))
+   ;;               :driver-class (env :driver-class)
+   ;;          :generate "user-table")))
 
 (deftask run-tests []
   (comp
