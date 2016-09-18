@@ -1,4 +1,4 @@
-;; (ns holy-grail.ajax
+(ns holy-grail.ajax)
 ;;   (:require [ajax.core :as ajax]))
 
 ;; (defn default-headers [request]

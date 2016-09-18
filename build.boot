@@ -1,5 +1,5 @@
 (set-env!
- :source-paths   #{"src/cljs" "src/clj"}
+ :source-paths   #{"src/cljs" "src/clj" "test"}
  :resource-paths #{"resources"}
  :dependencies '[
                  ;;; These three libraries are Boot's answer to Figwheel
@@ -46,7 +46,6 @@
                  [boot-environ                 "1.1.0"]
                  ;;; Similar, same overall library, used by System.
                  [environ                      "1.1.0"]
-
                  ;;; Authentication library. Simpler than friend they say.
                  [buddy                        "1.1.0"]
 
@@ -54,7 +53,7 @@
                  [org.danielsz/system          "0.3.0-SNAPSHOT"]
 
                  [tolitius/boot-check           "0.1.3"     :scope "test"]
-
+                 [adzerk/boot-test "1.1.2"]
                  [pandeiro/boot-http            "0.7.3"     :scope "test"]
                  [crisptrutski/boot-cljs-test   "0.2.1"     :scope "test"]])
 
@@ -62,24 +61,42 @@
  '[adzerk.boot-cljs      :refer [cljs]]
  '[adzerk.boot-cljs-repl :refer [cljs-repl start-repl]]
  '[adzerk.boot-reload    :refer [reload]]
+ '[adzerk.boot-test :as boot-test]
  '[holy-grail.systems :refer [dev-system prod-system]]
  '[pandeiro.boot-http            :refer [serve]]
  '[crisptrutski.boot-cljs-test   :refer [test-cljs]]
  '[tolitius.boot-check           :as    check]
  '[environ.boot :refer [environ]]
+ '[environ.core :refer [env]]
  '[mbuczko.boot-ragtime :refer [ragtime]]
+ '[clojure.java.io :as io]
  '[system.boot :refer [system run]])
 
 (ns-unmap 'boot.user 'test)
 
 (task-options!
- ragtime {:database "postgresql://localhost:5432/learning_db?user=timothyroy&password=flesym13"
-          :driver-class "org.postgresql.Driver"})
+ ragtime {:database
+          (str (env :database-url)
+               (env :database-name)
+               "?user=" (env :database-user)
+               "&password=" (env :database-password))
 
-(deftask test []
+          :driver-class (env :driver-class)})
+          
+
+(def config
+  (let [f (io/file "config.edn")]
+    (if (.exists f)
+      (-> f slurp read-string)
+      {})))
+
+
+(deftask run-tests []
   (comp
+   (environ :env config)
+   (watch)
    (speak)
-   (test-cljs)))
+   (boot-test/test :namespaces #{'database-url-test 'bootenvtest})))
 
 
 (deftask analyze []
@@ -95,12 +112,11 @@
   "Run a restartable system in the Repl"
   []
   (comp
-   (environ :env {:http-port "3000"})
+                                        ;   (environ :env {:http-port "3000"})
+   (environ :env config)
    (watch :verbose true)
    (system :sys #'dev-system :auto true :files ["handler.clj" "services.clj"])
-
    (reload)
- 
    (cljs :source-map true
          :optimizations :none)
    (sift :include #{#"\.cljs\.edn$"} :invert true)

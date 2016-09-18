@@ -7,7 +7,6 @@
    [system.core :refer [defsystem]]
    [holy-grail.handler :refer [event-msg-handler*]]
    (system.components 
-;    [jetty :refer [new-web-server]]
     [sente :refer [new-channel-sockets]]
     [http-kit :refer [new-web-server]]
     [postgres :refer [new-postgres-database]]
@@ -15,15 +14,12 @@
 
  
 (def postgres-spec
-  {:classname   "org.postgresql.Driver" ; must be in classpath
+  {:classname   (str (env :driver-class))
    :subprotocol "postgresql"
    :host "127.0.0.1"
-;   :host "postgresql"
-   :subname "learning_db"
-   :username "timothyroy"
-   :password "flesym13"})
-   
-
+   :subname (env :database-name)
+   :username (env :database-user)
+   :password (env :database-password)})
 
 
 (defsystem dev-system
