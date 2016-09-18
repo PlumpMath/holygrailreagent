@@ -1,4 +1,0 @@
-{:require [holy-grail.core]
- :init-fns [holy-grail.core/app]
-
-}
