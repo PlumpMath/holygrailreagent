@@ -21,6 +21,7 @@
                  [day8.re-frame/undo          "0.3.2"]
                  ;;; The story of URLs with re-frame and secretary is not yet complete.
                  [secretary                   "1.2.3"]
+                 [oj "0.3.0"]
                  [korma "0.4.3"]
                  [sqlingvo "0.8.17"]
                  [com.taoensso/sente "1.10.0"]
