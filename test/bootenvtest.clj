@@ -46,7 +46,7 @@
   ;;; rollback the last migration applied
   (migratus/rollback config))
 
-                                        ;(migratus/migrate config)
+ ;(migratus/migrate config)
 ;(migratus/up config 20150701134958)
                                         ;(migratus/down config 20150701134958)
 ;; 
