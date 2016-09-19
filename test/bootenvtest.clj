@@ -2,28 +2,23 @@
   (:require  [clojure.test :refer :all]
              [environ.boot :refer [environ]]
              [environ.core :refer [env]]
-             [korma.db :as db]
-             [korma.core :as korma]
              [migratus.core :as migratus]
-             [clojure.java.jdbc :as jdbc]
-             [clojure.edn])
-  (:use [korma.db]
-        [korma.core]))
+             [system.components.postgres :as p]
+             [com.stuartsierra.component :as component]
+             [clojure.java.jdbc :as jdbc]))
 
-
-(defdb db (postgres {:db (env :database-name)
-                     :user (env :database-user)
-                     :password (env :database-user)}))
-
-(defentity users
-   (table :quux))
+(def test-db-spec
+  {:classname  (env :driver-class)
+   :subprotocol (env :subprotocol)
+   :host "127.0.0.1"
+   :subname (env :database-name)
+   :username (env :database-user)
+   :password (env :database-password)})
                     
 (def config {:store                :database
              :migration-dir        "migrations/"
-             :init-script          "init.sql"
-             :migration-table-name "quux"
              :db {:classname   (env :driver-class)
-                  :subprotocol (env :subprotocol)
+                  :subprotocol "postgres" ;;(env :subprotocol)
                   :subname     (env :database-name)}})
 
 
@@ -31,20 +26,39 @@
   (is (= "org.postgresql.Driver" (env :driver-class)))
   (is (= "3000" (env :http-port))))
 
-(deftest db-test []
-  (let [db (:postgres system)
+                                        
+(deftest ^:dependency postgres-test-create-table-and-insert
+  (let [db (component/start
+            (p/new-postgres-database test-db-spec))
         msg "It works!"]
     (jdbc/execute! db ["CREATE TEMP TABLE test (coltest varchar(20));"])
     (jdbc/insert! db :test {:coltest msg})
-    (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"]))))))
+    (is (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"])))))
+    (component/stop db)))
 
-(deftest put-and-get-user
+
+(deftest put-person-in-and-take-them-out
+  ;;; apply pending migrations
   (migratus/migrate config)
-  (insert users
-          (values {:name "john" :id 1}))
-  ;;; the select query returns the entire row as a map in a list
-  ;;; we get out the list, and then the relevant value
-  (is (= "john" (:name (first (select users (where {:name "john"}))))))
-  (delete users (where {:id 1}))
+  (jdbc/with-db-connection [db-con test-db-spec]
+    (jdbc/insert! db-con :quux {:name "john" :id 1})
+    (is (= "john" (:name (first (jdbc/query db-con ["SELECT * from quux;"]))))))
+  ;;; rollback the last migration applied
   (migratus/rollback config))
 
+                                        ;(migratus/migrate config)
+;(migratus/up config 20150701134958)
+                                        ;(migratus/down config 20150701134958)
+;; 
+;(migratus/rollback config)
+;; ;initialize the database using the 'init.sql' script
+;; (migratus/init config)
+
+
+
+;; (migratus/reset config)
+;(migratus/migrate config)
+;; ;; (migratus/rollback config)
+;; (migratus/down config 20160918164140)
+;; ;; (migratus/down config 20160918164140)
+;; ;(migratus/migrate config) 

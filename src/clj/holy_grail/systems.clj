@@ -11,10 +11,9 @@
     [http-kit :refer [new-web-server]]
     [postgres :refer [new-postgres-database]]
     [repl-server :refer [new-repl-server]])))
-
  
 (def postgres-spec
-  {:classname   (str (env :driver-class))
+  {:classname   (env :driver-class)
    :subprotocol "postgresql"
    :host "127.0.0.1"
    :subname (env :database-name)
@@ -27,7 +26,8 @@
    ;;; This is brilliant. This replaces our explicit call to start the channel socket up.
    ;;; So much more elegant.
    :sente (new-channel-sockets event-msg-handler* sente-web-server-adapter)
-   :postgres (new-postgres-database postgres-spec)])
+   ;:postgres (new-postgres-database postgres-spec)
+   ])
    
 
 (defsystem prod-system

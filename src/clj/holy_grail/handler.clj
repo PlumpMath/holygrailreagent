@@ -11,6 +11,10 @@
    [taoensso.sente :as sente]
    [taoensso.sente.server-adapters.http-kit      :refer (get-sch-adapter)]
    [taoensso.timbre    :as timbre :refer (tracef debugf infof warnf errorf)]
+
+   ;;; These should be here temporarily.
+   [environ.core :refer [env]]
+   [migratus.core :as migratus]
    [clojure.java.io :as io]
    [clojure.java.jdbc :as jdbc]
    [compojure.core :refer [defroutes GET POST wrap-routes routes]]
@@ -20,13 +24,22 @@
    [ring.middleware.keyword-params :refer [wrap-keyword-params]]
    [ring.util.response :refer [response content-type resource-response]]))
 
+(def config {:store                :database
+             :migration-dir        "migrations/"
+             :init-script          "init.edn"
+             :migration-table-name "quux"
+             :db {:classname   "org.postgresql.Driver"
+                  :subprotocol "postgres" ;(env :subprotocol)
+                  :subname    "learning_db"}})
+
+(migratus/down config 20150701134958)
 (defn db-test []
   (let [db (:postgres system)
         msg "It works!"]
     (jdbc/execute! db ["CREATE TEMP TABLE test (coltest varchar(20));"])
     (jdbc/insert! db :test {:coltest msg})
     (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"]))))))
-  
+
 
 ;;; Add this: --->
 ;;;

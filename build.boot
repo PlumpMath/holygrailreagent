@@ -53,10 +53,11 @@
                  [environ                      "1.1.0"]
                  ;;; Authentication library. Simpler than friend they say.
                  [buddy                        "1.1.0"]
-
+                 [drift "1.5.3"]
                  ;;; Lets us manage web server, database, etc., and hot-reload them.
                  [org.danielsz/system          "0.3.0-SNAPSHOT"]
-
+                 [com.stuartsierra/component "0.3.1"]
+                 
                  [tolitius/boot-check           "0.1.3"     :scope "test"]
                  [adzerk/boot-test "1.1.2"]
                  [pandeiro/boot-http            "0.7.3"     :scope "test"]
@@ -73,14 +74,12 @@
  '[tolitius.boot-check           :as    check]
  '[environ.boot :refer [environ]]
  '[environ.core :refer [env]]
- '[mbuczko.boot-ragtime :refer [ragtime]]
- '[mbuczko.boot-flyway :refer [flyway]]
  '[clojure.java.io :as io]
  '[system.boot :refer [system run]])
 
+
 (ns-unmap 'boot.user 'test)
 
-          
 
 (def config
   (let [f (io/file "config.edn")]
@@ -88,18 +87,6 @@
       (-> f slurp read-string)
       {})))
 
-;(alter-var-root #'env #(merge config %))
-
-
-(task-options!
- ragtime {:database "postgresql://localhost:5432/learning_db?user=timothyroy&password=flesym13"})
-   ;; (ragtime :database
-   ;;          (str (env :database-url)
-   ;;               (env :database-name)
-   ;;               "?user=" (env :database-user)
-   ;;               "&password=" (env :database-password))
-   ;;               :driver-class (env :driver-class)
-   ;;          :generate "user-table")))
 
 (deftask run-tests []
   (comp
@@ -122,7 +109,6 @@
   "Run a restartable system in the Repl"
   []
   (comp
-                                        ;   (environ :env {:http-port "3000"})
    (environ :env config)
    (watch :verbose true)
    (system :sys #'dev-system :auto true :files ["handler.clj" "services.clj"])
