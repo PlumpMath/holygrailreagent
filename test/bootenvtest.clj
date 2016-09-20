@@ -6,8 +6,7 @@
              [oj.core :as oj :rename [update oj/update]]
              [system.components.postgres :as p]
              [com.stuartsierra.component :as component]
-             [clojure.java.jdbc :as jdbc]
-             [oj.core :as oj :refer [exec]]))
+             [clojure.java.jdbc :as jdbc]))
 
 (def test-db-spec
   {:classname  (env :driver-class)
@@ -20,7 +19,7 @@
 (def config {:store                :database
              :migration-dir        "migrations/"
              :db {:classname   (env :driver-class)
-                  :subprotocol "postgres" ;;(env :subprotocol)
+                  :subprotocol (env :subprotocol)
                   :subname     (env :database-name)}})
 
 
@@ -38,18 +37,35 @@
     (is (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"])))))
     (component/stop db)))
 
+(println (migratus/pending-list config))
 (deftest put-person-in-and-take-them-out
-  ;;; apply pending migrations
-  (migratus/migrate config)
   (jdbc/with-db-connection [db-con test-db-spec]
     (jdbc/insert! db-con :quux {:name "john" :id 1})
     (is (= "john" (:name (first
                           (oj/exec {:table :quux
                                     :select [:name]
-                                    :where {:name "john"}} test-db-spec)
-                          )))))
+                                    :where {:name "john"}} test-db-spec)))))))
+(deftest use-oj-with-system
+  (let [db (component/start
+            (p/new-postgres-database test-db-spec))]
+    
+    (is (= "john" (:name (first
+                          (oj/exec {:table :quux
+                                    :select [:name]
+                                    :where {:name "john"}} test-db-spec)))))
+    (component/stop db)))
+
+
+  ;;; apply pending migrations
+  ;; (migratus/create config "create-user")
+  ;; (migratus/migrate config)
+;;  (migratus/init config)
+
   ;;; rollback the last migration applied
-  (migratus/rollback config))
+  ;; (migratus/rollback config)
+  ;; (migratus/destroy config "create-user")
+  
+
 
  ;(migratus/migrate config)
 ;(migratus/up config 20150701134958)

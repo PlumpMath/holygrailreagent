@@ -7,8 +7,7 @@
    [holy-grail.config :as config]
    [holy-grail.events]
    [holy-grail.subs]
-;   [ajax.core :refer [GET POST]]
-;   [markdown.core :refer [md->html]]
+   [ajax.core :refer [GET POST]]
    [secretary.core :as secretary :refer-macros [defroute]]
    [goog.history.EventType :as HistoryEventType]
    [cljs.core.async :as async :refer (<! >! put! chan)]
@@ -76,19 +75,29 @@
   (chsk-send! [:rente/testevent {:message "Hello socket Event!"}]))
 
 (defn test-login []
-  (chsk-send! [:me/logger {:params 123}]))
+  (chsk-send! [:me/logger {:message "hello"}]))
 
 ;;; With this simple method, I'm able to explicitly send a CSRF token.
 ;;; This was sent to us when we started up our websocket connection.
 ;;; NO MORE ROUNDABOUT PROCEDURES
-(defn login [user-id]
+(defn signup []
   (sente/ajax-lite "/login"
                    {:method :post
                     :headers {:X-CSRF-Token (:csrf-token @chsk-state)}
-                    :params  {:user-id (str user-id)}}
+                    :params  {:name "Timothy" :password "mysecret"}}
                    #(js/console.log "CALLBACK from server: " (pr-str %))))
                    ;; (fn [response]
-                   ;;   (js/console.log (js->clj :keywordize-keys true response)))))
+;;   (js/console.log (js->clj :keywordize-keys true response)))))
+(defn loggedin []
+  (sente/ajax-lite "/home"
+                   {:method :get
+                    :headers {:X-CSRF-Token (:csrf-token @chsk-state)}}
+                   #(js/console.log "CALLBACK from server: " (pr-str %))))
+
+;; (defn loggedin []
+;;   (GET "/home"
+;;        {:headers {:X-CSRF-Token (:csrf-token @chsk-state)}}))
+       
 ;; -- Routes and History ------------------------------------------------------
 
 (defroute "/" [] (dispatch [:set-showing :all]))
@@ -215,15 +224,15 @@
     [:button {:on-click test-socket-event}
        "Go WebSocket!"]))
 
-(defn login-button []
+(defn signup-button []
   (fn []
-    [:button {:on-click #(login 123)}
-       "LOG IN!"]))
+    [:button {:on-click #(signup)}
+       "Sign up!"]))
 
-(defn other-login-button []
+(defn arewe-loggedin-button []
   (fn []
-    [:button {:on-click test-login}
-       "Trying it out!"]))
+    [:button {:on-click #(loggedin)}
+       "Are we logged in?"]))
 
 
 (defn todo-app
@@ -235,21 +244,20 @@
         [task-entry]
         (when (seq @todos)
           [task-list])
-        [footer-controls]]
-         
+        [footer-controls]]         
        [:footer#info
-        [:p "Double-click to edit a todo"]
+        [:p "Double-click to edit any todo"]
         [undo-button]
         [:br]
         [socket-button]
         [:br]
         [:br]
-        [login-button]
+        [signup-button]
         [:br]
         [:br]
-        [other-login-button]
-        ]
-         ])))
+        [arewe-loggedin-button]]])))
+        
+         
 
 
 ;; -------------------------
@@ -260,11 +268,11 @@
 (defn render
   "Render the application."
   []
-  (reagent/render [todo-app] js/container)
+  (reagent/render [todo-app] (.getElementById js/document "container"))
    ;;; Start the Sente router.
    ;;; Sends crazy messages if put in our app call.
   ;;; I guess the page has to be rendered already.
-  (sente/start-chsk-router! ch-chsk event-msg-handler*))
+ (sente/start-chsk-router! ch-chsk event-msg-handler*))
 
 
   
@@ -272,7 +280,7 @@
 (defn app
   "Configure and bootstrap the application."
   []
-  (dispatch-sync [:initialise-db])
+ (dispatch-sync [:initialise-db]
   (when (identical? config/production false)
     ;; -- Debugging aids ----------------------------------------------------------
     (devtools/install!)       ;; we love https://github.com/binaryage/cljs-devtools
@@ -280,4 +288,4 @@
   (hook-browser-navigation!)
 
 ;  (fetch-docs!)
-  (render))
+  (render)))

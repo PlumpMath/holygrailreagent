@@ -3,16 +3,18 @@
             [cljs.test :refer-macros [is]]
             [devcards.core :as dc :refer-macros [defcard-rg deftest]]
             [reagent.core]))
-(defn component []
-  "Application page component."
-  [:div "Hello world"])
 
 
 (defcard-rg page
   "This is the `app/page` component."
-  [component])
+  [:div
+   [:p "Hello world. I totes love you. Yeah!!"]
+   [:p "What now fool?"]])
 
-(deftest page-test)
+(defcard-rg buttongguy
+    [:button {:on-click #(js/console.log "Log me in, maybe?")}
+       "Are we logged in? Or maybe not?"])
+
 
 (defn devcards []
   (dc/start-devcard-ui!))

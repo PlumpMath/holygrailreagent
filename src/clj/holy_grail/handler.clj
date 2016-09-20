@@ -1,44 +1,32 @@
 (ns holy-grail.handler
   (:require
-   [holy-grail.api :refer :all]
-   [holy-grail.services :refer [swag]]
-   [system.repl :refer [system]]
-   [buddy.sign.jws             :as jws]
-   [buddy.sign.jwe :as jwe]
-   [clj-time.core              :as time]
-   [buddy.auth.backends.token  :refer [jws-backend]]
-   [buddy.hashers              :as hashers]
-   [taoensso.sente :as sente]
-   [taoensso.sente.server-adapters.http-kit      :refer (get-sch-adapter)]
-   [taoensso.timbre    :as timbre :refer (tracef debugf infof warnf errorf)]
+   [holy-grail.api                 :refer :all]
+   [holy-grail.services            :refer [swag]]
+   [holy-grail.database            :refer :all]
+   [system.repl                    :refer [system]]
+   [clj-time.core                  :as time]
 
-   ;;; These should be here temporarily.
-   [environ.core :refer [env]]
-   [migratus.core :as migratus]
-   [clojure.java.io :as io]
-   [clojure.java.jdbc :as jdbc]
-   [compojure.core :refer [defroutes GET POST wrap-routes routes]]
-   [compojure.route :as route]
-   [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
-   [ring.middleware.params :refer [wrap-params]]
+   [liberator.core                 :refer [defresource]]
+   [liberator.representation       :refer [ring-response]]
+   [buddy.sign.jwt                 :as jwt]
+   [buddy.sign.jws                 :as jws]
+   [buddy.sign.jwe                 :as jwe]
+   [buddy.auth                     :refer [authenticated? throw-unauthorized]]
+   [buddy.auth.backends.token      :refer [jwe-backend]]
+   [buddy.auth.middleware          :refer [wrap-authentication wrap-authorization]]
+   [buddy.hashers                  :as hashers]
+   [buddy.core.nonce               :as nonce]   
+   [taoensso.sente                 :as sente]
+   [taoensso.timbre                :as timbre :refer (tracef debugf infof warnf errorf)]
+
+   [clojure.java.io                :as io]
+   [compojure.core                 :refer [defroutes GET POST ANY wrap-routes routes]]
+   [compojure.route                :as route]
+   [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
+   [ring.middleware.defaults       :refer [wrap-defaults site-defaults]]
+   [ring.middleware.params         :refer [wrap-params]]
    [ring.middleware.keyword-params :refer [wrap-keyword-params]]
-   [ring.util.response :refer [response content-type resource-response]]))
-
-(def config {:store                :database
-             :migration-dir        "migrations/"
-             :init-script          "init.edn"
-             :migration-table-name "quux"
-             :db {:classname   "org.postgresql.Driver"
-                  :subprotocol "postgres" ;(env :subprotocol)
-                  :subname    "learning_db"}})
-
-(migratus/down config 20150701134958)
-(defn db-test []
-  (let [db (:postgres system)
-        msg "It works!"]
-    (jdbc/execute! db ["CREATE TEMP TABLE test (coltest varchar(20));"])
-    (jdbc/insert! db :test {:coltest msg})
-    (= msg (:coltest (first (jdbc/query db ["SELECT * from test;"]))))))
+   [ring.util.response             :refer [response content-type resource-response]]))
 
 
 ;;; Add this: --->
@@ -54,33 +42,76 @@
   (def connected-uids                connected-uids)) ; Watchable, read-only atom
   
 
-(defn login-handler
-  "Here's where you'll add your server-side login/auth procedure (Friend, etc.).
-  In our simplified example we'll just always successfully authenticate the user
-  with whatever user-id they provided in the auth request."
-  [ring-req]
-        ;;;; Get the values from :session and :params from the ring request.
-  (let [{:keys [session params]} ring-req
-        ;;;; Get the value for :user-id from the param
-        {:keys [user-id]} params]
-    ;;; I don't know what debugf does
-    (debugf "Login request: %s" params)
-    ;;; To authenticate the user, we just add :uid and their correct id to the session.
-    ;;; 
-    {:status 200 :session (assoc session :uid user-id)}))
+(defresource mustbeloggedin [request]
+  :authorized? (fn [request] (authenticated? request))
+  :available-media-types ["text/plain" "application/clojure;q=0.9"]
+  :allowed-methods [:get :post]
+  :handle-ok (fn [] {:yourock "no, really"}))
+
+(defresource check-ring-map [ctx]
+  :available-media-types ["text/plain" "application/clojure"]
+  :handle-ok (fn [ctx] (str ctx)))
+
+(def my-secret (nonce/random-bytes 32))
+
+(defresource sign-up-handler [ring-req]
+  :available-media-types ["text/plain" "application/clojure"]
+  :allowed-methods [:get :post]
+  :handle-created (fn [ring-req]
+                    (let [{:keys [request session params]} ring-req
+                          {:keys [user-id name password]} params]
+                      (println (str "Hey look here " (:identity (assoc ring-req :identity "hello"))))
+                      (if (and (= name "Timothy") (= password "mysecret"))
+                        (let [claims {:user (keyword name)
+                                      :exp (time/plus (time/now) (time/seconds 3600))}
+                              token (jwt/encrypt claims my-secret {:alg :a256kw :enc :a128gcm})]
+                          
+                          (ring-response {:status 200 :session (assoc session :identity token :uid user-id :token token)}))))))
+                                         
+
+(defn ok [d] {:status 200 :body d})
+(defn bad-request [d] {:status 400 :body d})
+
+(defn home
+  [request]
+  (if-not (authenticated? request)
+    (throw-unauthorized)
+    (ok {:status "Logged" :message (str "hello logged user "
+                                        (:identity request))})))
+
+(defn login
+  [request]
+  (let [{:keys [request session params]} request
+        {:keys [user-id name password]} params
+        valid? (and (= name "Timothy") (= password "mysecret"))]
+    (println (str valid?))
+    (if valid?
+      (let [claims {:user (keyword name)
+                    :exp (time/plus (time/now) (time/seconds 3600))}
+            token (jwt/encrypt claims my-secret {:alg :a256kw :enc :a128gcm})
+            updated-session (-> session
+                                  (assoc :identity (:username token)))
+            ]
+        (do
+          (println (str session))
+          (assoc session :session updated-session)
+        
+          (ok {:token token})))
+      (bad-request {:message "wrong auth data"}))))
 
 (defroutes home-routes
   (GET "/" [] (-> (resource-response "index.html")
                   (content-type "text/html")))
   (GET "/docs" [] (-> (resource-response "docs/docs.md")
                       (content-type "text/plain; charset=utf-8")))
-
-  (POST "/login" ring-req (login-handler                 ring-req))
-  (GET "/db" [] (str (db-test)))
-
+  (GET "/home" [] home)
+  (POST "/login" [] login)
+  (ANY "/checkringmap"      ring-req (check-ring-map ring-req))
+  (ANY "/signup"            ring-req (sign-up-handler ring-req))
+  (ANY "/mustbeloggedin"    ring-req (mustbeloggedin  ring-req))
     ;;; Add these 2 entries: --->
-  (GET  "/chsk"  req ((:ring-ajax-get-or-ws-handshake (:sente system)) req))
-  (POST "/chsk"  req ((:ring-ajax-post (:sente system)) req))  
+  ;; (GET  "/chsk"  req ((:ring-ajax-get-or-ws-handshake (:sente system)) req))
+  ;; (POST "/chsk"  req ((:ring-ajax-post (:sente system)) req))  
   (GET "/devcards" [] (-> (resource-response "devcards.html")
                           (content-type "text/html"))))
 
@@ -96,7 +127,7 @@
 (defmethod event-msg-handler :me/logger
   [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}
    req req]
-  (send-fn :sente/all-users-without-uid [:me/logger (login-handler req)]))
+  (send-fn :sente/all-users-without-uid [:me/logger {:message (str (mustbeloggedin req))}]))
 
 
 (defmethod event-msg-handler :default ; Fallback
@@ -106,7 +137,6 @@
     (println "Unhandled event: %s" event)
     (when ?reply-fn
       (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
-
 
 
 (defn event-msg-handler* [{:as ev-msg :keys [id ?data event]}]
@@ -119,12 +149,14 @@
    #'swag
    (route/not-found "Not Found")))
 
+(def auth-backend (jwe-backend {:secret my-secret :options {:alg :a256kw :enc :a128gcm}}))
 
 (def middleware (-> site-defaults
                  (assoc-in [:static :resources] "/")))
                  
 
 (def app
-  (-> myroutes
-      (wrap-defaults middleware)))
-
+  (as-> myroutes $
+;      (wrap-authorization $ auth-backend)
+      (wrap-authentication $ auth-backend)
+      (wrap-defaults $ middleware)))

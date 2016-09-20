@@ -6,7 +6,7 @@
                  [adzerk/boot-cljs            "1.7.228-1" :scope "test"]
                  [adzerk/boot-reload          "0.4.12" :scope "test"]
                  [adzerk/boot-cljs-repl       "0.3.0" :scope "test"]
-                 
+
                  ;;; Enables a Cljs-specific nREPL. Haven't yet used.
                  [com.cemerick/piggieback     "0.2.1"  :scope "test"]
                  ;;; Together with piggieback, enables a browser REPL.
@@ -29,13 +29,17 @@
                  [mbuczko/boot-flyway "0.1.0-SNAPSHOT"]
                  [migratus "0.8.28"]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
+
+                 [cljs-ajax "0.5.8"]
                  
                  [org.clojure/tools.nrepl     "0.2.12"]                 
                  [org.clojure/clojure         "1.8.0"]
                  [org.clojure/clojurescript   "1.9.225"]
                  [org.clojure/tools.logging   "0.3.1"]
+                 [liberator "0.14.1"]
                  [compojure                   "1.4.0"]                 
                  [ring-middleware-format      "0.7.0"]
+                 [ring/ring-json "0.4.0"]
                  [ring-webjars                "0.1.1"]
                  [ring/ring-core              "1.4.0"]
                  [ring/ring-jetty-adapter     "1.4.0"]
@@ -115,8 +119,8 @@
    (system :sys #'dev-system :auto true :files ["handler.clj" "services.clj"])
    (reload)
    (cljs :source-map true
-         :optimizations :none)
-   (sift :include #{#"\.cljs\.edn$"} :invert true)
+;         :optimizations :none
+         :compiler-options {:devcards true})
    (repl :server true)
    (speak)))
 
@@ -150,5 +154,3 @@
    (cljs :optimizations :advanced)
    (run :main-namespace "holy-grail.core" :arguments [#'prod-system])
    (wait)))
-
-
